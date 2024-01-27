@@ -7,10 +7,10 @@ current_chunk = []
 current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
+directory_path = ""
 
 # Assuming 'files' is a list of file paths, you need to get their sizes
-# Replace 'your_directory_path' with the path to the directory you want to process
-files = [(f, os.path.getsize(f)) for f in os.listdir('your_directory_path') if os.path.isfile(f)]
+files = [(f, os.path.getsize(f)) for f in os.listdir(directory_path) if os.path.isfile(f)]
 
 # Check whether the file is ignored
 def is_ignored(filepath):
