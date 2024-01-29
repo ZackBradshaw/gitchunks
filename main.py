@@ -31,8 +31,8 @@ def is_ignored(filepath):
     except subprocess.CalledProcessError:
         return False
 
-def commit_chunk(chunk, message):
-    # Stage files for commit, skipping ignored files
+# Function to commit and push the current chunk
+def commit_and_push_chunk(chunk, message):
     for f in chunk:
         if not is_ignored(f):
             subprocess.check_call(f"git add {shlex.quote(f)}", shell=True)
@@ -42,6 +42,8 @@ def commit_chunk(chunk, message):
     if staged_changes:
         # Commit if there are staged changes
         subprocess.check_call(["git", "commit", "-m", message])
+        # Push the commit
+        subprocess.check_call(["git", "push"])
     else:
         print("No changes to commit for this chunk.")
 
@@ -56,16 +58,16 @@ for filepath, filesize in files:
         current_chunk.append(filepath)
         current_chunk_size += filesize
     else:
-        # Commit the current chunk
+        # Commit and push the current chunk
         commit_message = f"Chunk {chunk_counter}"
-        commit_chunk(current_chunk, commit_message)
+        commit_and_push_chunk(current_chunk, commit_message)
 
         # Reset the chunk
         current_chunk = [filepath]
         current_chunk_size = filesize
         chunk_counter += 1
 
-# Commit the last chunk if there are any files left
+# Commit and push the last chunk if there are any files left
 if current_chunk:
     commit_message = f"Chunk {chunk_counter}"
-    commit_chunk(current_chunk, commit_message)
+    commit_and_push_chunk(current_chunk, commit_message)
