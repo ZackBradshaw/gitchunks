@@ -16,13 +16,14 @@ directory_path = os.path.expanduser(os.getenv("PROJECT_PATH"))
 # Change to the Git repository directory
 os.chdir(directory_path)
 
-# Assuming 'files' is a list of file paths, you need to get their sizes
-files = [
-    (os.path.join(directory_path, f), os.path.getsize(os.path.join(directory_path, f)))
-    for f in os.listdir(directory_path)
-    if os.path.isfile(os.path.join(directory_path, f))
-]
-
+# Get a list of all files in the directory and subdirectories, with their sizes
+files = []
+for root, dirs, files_in_dir in os.walk(directory_path):
+    for f in files_in_dir:
+        full_path = os.path.join(root, f)
+        if os.path.isfile(full_path):
+            files.append((full_path, os.path.getsize(full_path)))
+            
 # Check whether the file is ignored
 def is_ignored(filepath):
     try:
