@@ -1,16 +1,25 @@
 import subprocess
 import shlex
 import os
+import dotenv
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Initialize variables
 current_chunk = []
 current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
-directory_path = ""
+directory_path = os.path.expanduser(os.getenv("PROJECT_PATH"))
 
 # Assuming 'files' is a list of file paths, you need to get their sizes
-files = [(f, os.path.getsize(f)) for f in os.listdir(directory_path) if os.path.isfile(f)]
+files = [
+    (os.path.join(directory_path, f), os.path.getsize(os.path.join(directory_path, f)))
+    for f in os.listdir(directory_path)
+    if os.path.isfile(os.path.join(directory_path, f))
+]
+
 
 # Check whether the file is ignored
 def is_ignored(filepath):
@@ -20,6 +29,7 @@ def is_ignored(filepath):
     except subprocess.CalledProcessError:
         return False
 
+
 # Loop through each file in our list
 for filepath, filesize in files:
     # If adding file doesn't cause the chunk to exceed the size limit
@@ -28,7 +38,9 @@ for filepath, filesize in files:
         current_chunk_size += filesize
     else:
         # If chunk size exceeds, commit the current chunk
-        print(f"Chunk {chunk_counter} size {current_chunk_size / (1024 * 1024 * 1024)} GB")
+        print(
+            f"Chunk {chunk_counter} size {current_chunk_size / (1024 * 1024 * 1024)} GB"
+        )
 
         for f in current_chunk:
             if not is_ignored(f):
