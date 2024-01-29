@@ -1,6 +1,7 @@
 import subprocess
 import shlex
 import os
+import sys
 import dotenv
 from dotenv import load_dotenv
 
@@ -33,24 +34,24 @@ def is_ignored(filepath):
         return True
     except subprocess.CalledProcessError:
         return False
-
-# Function to print an ASCII progress bar
+ 
 def print_progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█'):
     percent = ("{0:.1f}").format(100 * (iteration / float(total)))
     filled_length = int(length * iteration // total)
     bar = fill * filled_length + '-' * (length - filled_length)
     print(f'\r{prefix} |{bar}| {percent}% {suffix}', end='\r')
+    # Flush the output to ensure it updates in place
+    sys.stdout.flush()
     if iteration == total:
         print()
 
 # Function to commit and push the current chunk
 def commit_and_push_chunk(chunk, message, first_push=False):
-    print(f"Committing chunk {chunk_counter} with {len(chunk)} files...")
+    print(f"\nCommitting chunk {chunk_counter} with {len(chunk)} files...")
     for i, f in enumerate(chunk):
         if not is_ignored(f):
-            print(f"Staging {f}")
             subprocess.check_call(f"git add {shlex.quote(f)}", shell=True)
-            print_progress_bar(i + 1, len(chunk), prefix='Progress:', suffix='Complete', length=50)
+            print_progress_bar(i + 1, len(chunk), prefix='Staging Progress:', suffix='Complete', length=50)
     
     # Check if there are changes staged for commit
     staged_changes = subprocess.check_output(["git", "diff", "--cached"])
