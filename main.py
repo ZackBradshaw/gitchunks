@@ -31,12 +31,19 @@ def is_ignored(filepath):
     except subprocess.CalledProcessError:
         return False
 
-# Function to commit the current chunk
 def commit_chunk(chunk, message):
+    # Stage files for commit, skipping ignored files
     for f in chunk:
         if not is_ignored(f):
             subprocess.check_call(f"git add {shlex.quote(f)}", shell=True)
-    subprocess.check_call(["git", "commit", "-m", message])
+    
+    # Check if there are changes staged for commit
+    staged_changes = subprocess.check_output(["git", "diff", "--cached"])
+    if staged_changes:
+        # Commit if there are staged changes
+        subprocess.check_call(["git", "commit", "-m", message])
+    else:
+        print("No changes to commit for this chunk.")
 
 # Loop through each file in our list
 for filepath, filesize in files:
