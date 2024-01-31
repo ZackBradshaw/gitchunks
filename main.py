@@ -82,13 +82,20 @@ def commit_and_push_chunk(chunk, message, first_push):
         subprocess.check_call(["git", "push"])
     print(f"Chunk {chunk_counter} pushed to remote.")
     chunk_counter += 1
-# Get a list of all files in the directory and subdirectories, with their sizes
-files = []
+    
+all_paths = []
 for root, dirs, files_in_dir in os.walk(directory_path):
-    for f in files_in_dir:
-        full_path = os.path.join(root, f)
-        if os.path.isfile(full_path):
-            files.append((full_path, os.path.getsize(full_path)))
+    for name in dirs + files_in_dir:
+        all_paths.append(os.path.join(root, name))
+
+# Use git check-ignore to filter out ignored paths
+try:
+    ignored_paths = subprocess.check_output(["git", "check-ignore"] + all_paths).decode().splitlines()
+except subprocess.CalledProcessError:
+    ignored_paths = []
+
+# Filter out ignored paths
+files = [(path, os.path.getsize(path)) for path in all_paths if path not in ignored_paths and os.path.isfile(path)]
 
 # Loop through each file in our list
 for filepath, filesize in files:
@@ -115,3 +122,4 @@ for filepath, filesize in files:
 if current_chunk:
     commit_message = f"Chunk {chunk_counter}"
     commit_and_push_chunk(current_chunk, commit_message, first_push)
+
