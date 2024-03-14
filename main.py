@@ -13,8 +13,11 @@ current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
 directory_path = os.path.expanduser(os.getenv("PROJECT_PATH"))
+# TODO remove before commit
+directory_path = r"C:\Users\zack-\OneDrive - zackbradshaw\UnrealProjects\RiseOfAgora\"
+# directory_path = os.path.expanduser(os.getenv("PROJECT_PATH"))
 remote_name = "origin"
-branch_name = "chunked-upload"
+branch_name = "main"
 
 # Change to the Git repository directory
 os.chdir(directory_path)
@@ -49,16 +52,19 @@ def commit_and_push_chunk(chunk, message, first_push):
 
     print(f"\nCommitting chunk {chunk_counter} with {len(chunk)} files...")
     for i, f in enumerate(chunk):
+        # Get the relative path of the file from the Git repository root
+        relative_path = os.path.relpath(f, start=directory_path)
+
         # Check if the file is ignored
         try:
-            subprocess.check_output(["git", "check-ignore", f])
+            subprocess.check_output(["git", "check-ignore", relative_path])
             print(f"Skipping ignored file: {f}")
             continue  # Skip this file
         except subprocess.CalledProcessError:
             # File is not ignored, proceed to add
             pass
 
-        subprocess.check_call(f"git add {shlex.quote(f)}", shell=True)
+        subprocess.check_call(f"git add {shlex.quote(relative_path)}", shell=True)
         print_progress_bar(i + 1, len(chunk), prefix='Staging Progress:', suffix='Complete', length=50)
 
     # Check if there are any changes to commit
