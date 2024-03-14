@@ -13,8 +13,8 @@ current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
 # TODO remove before commit
-directory_path = r"~/home/zack/code/Bluepy"
-directory_path = os.path.expanduser(directory_path)
+directory_path = r"/home/zack/code/Bluepy"
+# directory_path = os.path.expanduser(directory_path)
 remote_name = "origin"
 branch_name = "main"
 
