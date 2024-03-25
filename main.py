@@ -13,7 +13,7 @@ current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
 # TODO remove before commit
-directory_path = r"/home/zack/code/Bluepy"
+directory_path = r"/mnt/c/Users/zack-/OneDrive - zackbradshaw/UnrealProjects/RiseOfAgora"
 # directory_path = os.path.expanduser(directory_path)
 remote_name = "origin"
 branch_name = "main"
@@ -84,12 +84,15 @@ def commit_and_push_chunk(chunk, message, first_push):
         subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name])
         first_push = False  # Ensure subsequent pushes don't try to set the upstream again
     else:
-        subprocess.check_call(["git", "push"])
+        subprocess.check_call(["git", "push", "--force"])
     print(f"Chunk {chunk_counter} pushed to remote.")
     chunk_counter += 1
-    
+
 all_paths = []
 for root, dirs, files_in_dir in os.walk(directory_path):
+    # Skip any paths that contain the .git directory
+    if '.git' in root.split(os.path.sep):
+        continue
     for name in dirs + files_in_dir:
         all_paths.append(os.path.join(root, name))
 
