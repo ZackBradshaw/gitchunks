@@ -13,8 +13,8 @@ current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
 # TODO remove before commit
-directory_path = r"/mnt/c/Users/zack-/OneDrive - zackbradshaw/UnrealProjects/RiseOfAgora"
-# directory_path = os.path.expanduser(directory_path)
+directory_path = os.get_env("PROJECT_PATH")
+directory_path = os.path.expanduser(directory_path)
 remote_name = "origin"
 branch_name = "main"
 
@@ -54,15 +54,6 @@ def commit_and_push_chunk(chunk, message, first_push):
         # Get the relative path of the file from the Git repository root
         relative_path = os.path.relpath(f, start=directory_path)
 
-        # Check if the file is ignored
-        try:
-            subprocess.check_output(["git", "check-ignore", relative_path])
-            print(f"Skipping ignored file: {f}")
-            continue  # Skip this file
-        except subprocess.CalledProcessError:
-            # File is not ignored, proceed to add
-            pass
-
         subprocess.check_call(f"git add {shlex.quote(relative_path)}", shell=True)
         print_progress_bar(i + 1, len(chunk), prefix='Staging Progress:', suffix='Complete', length=50)
 
@@ -96,11 +87,18 @@ for root, dirs, files_in_dir in os.walk(directory_path):
     for name in dirs + files_in_dir:
         all_paths.append(os.path.join(root, name))
 
-# Use git check-ignore to filter out ignored paths
-try:
-    ignored_paths = subprocess.check_output(["git", "check-ignore"] + all_paths).decode().splitlines()
-except subprocess.CalledProcessError:
+# Use git check-ignore to filter out ignored paths in smaller batches
+def get_ignored_paths(paths, batch_size=1000):
     ignored_paths = []
+    for i in range(0, len(paths), batch_size):
+        batch = paths[i:i + batch_size]
+        try:
+            ignored_paths += subprocess.check_output(["git", "check-ignore"] + batch).decode().splitlines()
+        except subprocess.CalledProcessError:
+            pass
+    return ignored_paths
+
+ignored_paths = get_ignored_paths(all_paths)
 
 # Filter out ignored paths
 files = [(path, os.path.getsize(path)) for path in all_paths if path not in ignored_paths and os.path.isfile(path)]
@@ -130,4 +128,3 @@ for filepath, filesize in files:
 if current_chunk:
     commit_message = f"Chunk {chunk_counter}"
     commit_and_push_chunk(current_chunk, commit_message, first_push)
-
