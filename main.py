@@ -2,7 +2,6 @@ import subprocess
 import shlex
 import os
 import sys
-import dotenv
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,8 +11,7 @@ current_chunk = []
 current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
-# TODO remove before commit
-directory_path = os.get_env("PROJECT_PATH")
+directory_path = "/home/zack/code/bluepy-llm/"
 directory_path = os.path.expanduser(directory_path)
 remote_name = "origin"
 branch_name = "main"
@@ -53,7 +51,6 @@ def commit_and_push_chunk(chunk, message, first_push):
     for i, f in enumerate(chunk):
         # Get the relative path of the file from the Git repository root
         relative_path = os.path.relpath(f, start=directory_path)
-
         subprocess.check_call(f"git add {shlex.quote(relative_path)}", shell=True)
         print_progress_bar(i + 1, len(chunk), prefix='Staging Progress:', suffix='Complete', length=50)
 
@@ -72,9 +69,11 @@ def commit_and_push_chunk(chunk, message, first_push):
     
     # Push the commit
     if first_push:
+        print("First push, setting upstream branch.")
         subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name])
         first_push = False  # Ensure subsequent pushes don't try to set the upstream again
     else:
+        print("Pushing with --force.")
         subprocess.check_call(["git", "push", "--force"])
     print(f"Chunk {chunk_counter} pushed to remote.")
     chunk_counter += 1
@@ -100,15 +99,19 @@ def get_ignored_paths(paths, batch_size=1000):
 
 ignored_paths = get_ignored_paths(all_paths)
 
-# Filter out ignored paths
-files = [(path, os.path.getsize(path)) for path in all_paths if path not in ignored_paths and os.path.isfile(path)]
+# Filter out ignored paths and check file sizes
+files = []
+for path in all_paths:
+    if path in ignored_paths or os.path.isdir(path):
+        continue
+    file_size = os.path.getsize(path)
+    if file_size <= chunk_size_limit:
+        files.append((path, file_size))
+    else:
+        print(f"File {path} is too large to handle in a single chunk and will be skipped.")
 
 # Loop through each file in our list
 for filepath, filesize in files:
-    if filesize > chunk_size_limit:
-        print(f"File {filepath} is too large to handle in a single chunk.")
-        continue
-
     # If adding file doesn't cause the chunk to exceed the size limit
     if current_chunk_size + filesize <= chunk_size_limit:
         current_chunk.append(filepath)
@@ -128,3 +131,7 @@ for filepath, filesize in files:
 if current_chunk:
     commit_message = f"Chunk {chunk_counter}"
     commit_and_push_chunk(current_chunk, commit_message, first_push)
+
+print("All chunks committed and pushed.")
+
+
