@@ -11,6 +11,7 @@ current_chunk = []
 current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
+file_size_limit = 100 * 1024 * 1024  # 100 MB in bytes for GitHub
 directory_path = "/home/zack/code/bluepy-llm/"
 directory_path = os.path.expanduser(directory_path)
 remote_name = "origin"
@@ -104,6 +105,9 @@ files = []
 for path in all_paths:
     if path in ignored_paths or os.path.isdir(path):
         continue
+    if not os.path.exists(path):
+        print(f"Warning: File {path} does not exist and will be skipped.")
+        continue
     file_size = os.path.getsize(path)
     if file_size <= chunk_size_limit:
         files.append((path, file_size))
@@ -112,6 +116,11 @@ for path in all_paths:
 
 # Loop through each file in our list
 for filepath, filesize in files:
+    # If file size exceeds GitHub's file size limit, track it with Git LFS
+    if filesize > file_size_limit:
+        subprocess.check_call(f"git lfs track {shlex.quote(filepath)}", shell=True)
+        subprocess.check_call(f"git add .gitattributes", shell=True)
+
     # If adding file doesn't cause the chunk to exceed the size limit
     if current_chunk_size + filesize <= chunk_size_limit:
         current_chunk.append(filepath)
@@ -133,5 +142,9 @@ if current_chunk:
     commit_and_push_chunk(current_chunk, commit_message, first_push)
 
 print("All chunks committed and pushed.")
+
+
+
+
 
 
