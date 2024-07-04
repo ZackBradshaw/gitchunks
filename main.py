@@ -38,9 +38,10 @@ def print_progress_bar(iteration, total, prefix='', suffix='', length=50, fill='
     if iteration == total:
         sys.stdout.write('\n')
 
-def is_submodule(path):
+def is_in_submodule(path):
     try:
-        output = subprocess.check_output(["git", "submodule", "status", path], stderr=subprocess.DEVNULL)
+        relative_path = os.path.relpath(path, start=directory_path)
+        output = subprocess.check_output(["git", "submodule", "status", relative_path], stderr=subprocess.DEVNULL)
         return len(output) > 0
     except subprocess.CalledProcessError:
         return False
@@ -54,11 +55,11 @@ def commit_and_push_chunk(chunk, message, first_push):
     print(f"\nCommitting chunk {chunk_counter} with {len(chunk)} files...")
     for i, f in enumerate(chunk):
         relative_path = os.path.relpath(f, start=directory_path)
-        if is_submodule(relative_path):
-            print(f"Skipping submodule: {relative_path}")
+        if is_in_submodule(f):
+            print(f"Skipping file in submodule: {relative_path}")
             continue
         try:
-            subprocess.check_call(f"git add {shlex.quote(relative_path)}", shell=True)
+            subprocess.check_call(["git", "add", relative_path])
         except subprocess.CalledProcessError as e:
             print(f"Error adding file {relative_path}: {e}")
             continue
@@ -115,8 +116,8 @@ for path in all_paths:
     if not os.path.exists(path):
         print(f"Warning: File {path} does not exist and will be skipped.")
         continue
-    if is_submodule(path):
-        print(f"Skipping submodule: {path}")
+    if is_in_submodule(path):
+        print(f"Skipping file in submodule: {path}")
         continue
     file_size = os.path.getsize(path)
     if file_size <= chunk_size_limit:
