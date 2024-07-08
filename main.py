@@ -12,7 +12,7 @@ current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
 file_size_limit = 100 * 1024 * 1024  # 100 MB in bytes for GitHub
-directory_path = "/home/zack/code/bluepy-llm/"
+directory_path = "/home/zack/code/bluepy/"
 directory_path = os.path.expanduser(directory_path)
 remote_name = "origin"
 branch_name = "main"
@@ -100,6 +100,60 @@ def get_ignored_paths(paths, batch_size=1000):
             pass
     return ignored_paths
 
+def setup_git_lfs():
+    try:
+        subprocess.check_call(["git", "lfs", "install"])
+        print("Git LFS installed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing Git LFS: {e}")
+
+def authenticate_with_token():
+    token = os.getenv("GIT_TOKEN")
+    if token:
+        print("Setting up token authentication.")
+        remote_url = subprocess.check_output(["git", "remote", "get-url", remote_name]).decode().strip()
+        auth_remote_url = remote_url.replace("https://", f"https://{token}@")
+        subprocess.check_call(["git", "remote", "set-url", remote_name, auth_remote_url])
+    else:
+        print("GIT_TOKEN not set, skipping token authentication.")
+
+def test_push():
+    test_filename = "test_push_file.txt"
+    with open(test_filename, "w") as f:
+        f.write("This is a test file to verify push.")
+
+    try:
+        subprocess.check_call(["git", "add", test_filename])
+        subprocess.check_call(["git", "commit", "-m", "Test commit for verifying push"])
+        if first_push:
+            subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name])
+        else:
+            subprocess.check_call(["git", "push"])
+        print("Test file pushed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during test push: {e}")
+        sys.exit(1)
+    finally:
+        # Clean up the test file from the repo
+        subprocess.check_call(["git", "rm", test_filename])
+        subprocess.check_call(["git", "commit", "-m", "Remove test push file"])
+        subprocess.check_call(["git", "push"])
+
+# Authenticate with the token (optional)
+authenticate_with_token()
+
+# Setup Git LFS
+setup_git_lfs()
+
+# Check if the branch exists on remote
+first_push = not branch_exists_on_remote(branch_name)
+
+# Test push with a small file
+test_push()
+
+print("Test push completed successfully.")
+
+# Continue with staging and committing the actual files
 all_paths = []
 for root, dirs, files_in_dir in os.walk(directory_path):
     if '.git' in root.split(os.path.sep):
@@ -134,6 +188,7 @@ for filepath, filesize in files:
         current_chunk.append(filepath)
         current_chunk_size += filesize
     else:
+        print(f"Committing chunk {chunk_counter} due to size limit reached. Current chunk size: {current_chunk_size}, adding file size: {filesize}")
         commit_message = f"Chunk {chunk_counter}"
         first_push = commit_and_push_chunk(current_chunk, commit_message, first_push)
         current_chunk = [filepath]
@@ -144,10 +199,6 @@ if current_chunk:
     commit_and_push_chunk(current_chunk, commit_message, first_push)
 
 print("All chunks committed and pushed.")
-
-
-
-
 
 
 
