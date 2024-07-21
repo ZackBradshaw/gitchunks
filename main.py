@@ -156,14 +156,14 @@ def test_push():
 
 # Main script execution starts here
 
-# Authenticate with Hugging Face CLI
-authenticate_with_huggingface()
+# # Authenticate with Hugging Face CLI
+# authenticate_with_huggingface()
 
-# Setup Git LFS
-setup_git_lfs()
+# # Setup Git LFS
+# setup_git_lfs()
 
-# Set Git user credentials (optional but recommended)
-set_git_credentials()
+# # Set Git user credentials (optional but recommended)
+# set_git_credentials()
 
 # Check if the branch exists on remote
 first_push = not branch_exists_on_remote(branch_name)
