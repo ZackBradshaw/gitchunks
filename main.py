@@ -1,7 +1,7 @@
 import subprocess
 import os
 import sys
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
 load_dotenv()
 
@@ -15,6 +15,10 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 remote_name = "origin"
 branch_name = "main"
 huggingface_token = os.getenv("HF_TOKEN")
+
+if not find_dotenv():
+    print("Warning: .env file does not exist or is ignored.")
+load_dotenv()
 
 # Ensure HF_TOKEN is set
 if not huggingface_token:
@@ -154,16 +158,31 @@ def test_push():
         subprocess.check_call(["git", "commit", "-m", "Remove test push file"])
         subprocess.check_call(["git", "push"])
 
+# Function to push small commits one by one if too many small commits
+def push_small_commits():
+    try:
+        small_commits = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], text=True).strip()
+        if int(small_commits) > 1000:  # Arbitrary threshold for small commits
+            print(f"Too many small commits ({small_commits}). Pushing one by one.")
+            commits = subprocess.check_output(["git", "rev-list", "--reverse", "--no-merges", "HEAD"], text=True).splitlines()
+            for commit in commits:
+                subprocess.check_call(["git", "push", remote_name, f"{commit}:refs/heads/{branch_name}"])
+            return True
+        return False
+    except subprocess.CalledProcessError as e:
+        print(f"Error checking or pushing small commits: {e}")
+        sys.exit(1)
+
 # Main script execution starts here
 
-# # Authenticate with Hugging Face CLI
+# Authenticate with Hugging Face CLI
 # authenticate_with_huggingface()
 
-# # Setup Git LFS
+# Setup Git LFS
 # setup_git_lfs()
 
-# # Set Git user credentials (optional but recommended)
-# set_git_credentials()
+# Set Git user credentials (optional but recommended)
+set_git_credentials()
 
 # Check if the branch exists on remote
 first_push = not branch_exists_on_remote(branch_name)
@@ -219,17 +238,3 @@ if current_chunk:
     commit_and_push_chunk(current_chunk, commit_message, first_push)
 
 print("All chunks committed and pushed.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
