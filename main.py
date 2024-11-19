@@ -12,15 +12,24 @@ current_chunk_size = 0
 chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
 chunk_counter = 1
 file_size_limit = 100 * 1024 * 1024  # 100 MB in bytes for GitHub
-script_directory = os.path.dirname(os.path.realpath(__file__))  # Get directory of this script
 remote_name = "origin"
 branch_name = "main"
 huggingface_token = os.getenv("HF_TOKEN")
 
-# Ensure HF_TOKEN is set
-if not huggingface_token:
-    print("Error: HF_TOKEN environment variable is not set.")
+# Get the project path from the environment variable
+directory_path = os.getenv('PROJECT_PATH')
+if not directory_path:
+    print("Error: PROJECT_PATH not set in .env file")
     sys.exit(1)
+
+# Ensure the path exists
+if not os.path.exists(directory_path):
+    print(f"Error: The specified PROJECT_PATH does not exist: {directory_path}")
+    sys.exit(1)
+
+# Change to the project directory
+os.chdir(directory_path)
+print(f"Changed working directory to: {os.getcwd()}")
 
 # Set Hugging Face credentials for Git
 subprocess.check_call(["git", "config", "--global", "credential.helper", "store"])
@@ -45,7 +54,7 @@ def print_progress_bar(iteration, total, prefix='', suffix='', length=50, fill='
 
 def is_in_submodule(path):
     try:
-        relative_path = os.path.relpath(path, start=script_directory)
+        relative_path = os.path.relpath(path, start=directory_path)
         output = subprocess.check_output(["git", "submodule", "status", relative_path], stderr=subprocess.DEVNULL)
         return len(output) > 0
     except subprocess.CalledProcessError:
@@ -59,7 +68,7 @@ def commit_and_push_chunk(chunk, message, first_push):
 
     print(f"\nCommitting chunk {chunk_counter} with {len(chunk)} files...")
     for i, f in enumerate(chunk):
-        relative_path = os.path.relpath(f, start=script_directory)
+        relative_path = os.path.relpath(f, start=directory_path)
         if is_in_submodule(f):
             print(f"Skipping file in submodule: {relative_path}")
             continue
@@ -123,11 +132,11 @@ def authenticate_with_huggingface():
 
 def test_push():
     test_filename = "test_push_file.txt"
-    with open(os.path.join(script_directory, test_filename), "w") as f:
+    with open(os.path.join(directory_path, test_filename), "w") as f:
         f.write("This is a test file to verify push.")
 
     try:
-        subprocess.check_call(["git", "add", os.path.join(script_directory, test_filename)])
+        subprocess.check_call(["git", "add", os.path.join(directory_path, test_filename)])
         subprocess.check_call(["git", "commit", "-m", "Test commit for verifying push"])
         if first_push:
             subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name])
@@ -139,12 +148,9 @@ def test_push():
         sys.exit(1)
     finally:
         # Clean up the test file from the repo
-        subprocess.check_call(["git", "rm", os.path.join(script_directory, test_filename)])
+        subprocess.check_call(["git", "rm", os.path.join(directory_path, test_filename)])
         subprocess.check_call(["git", "commit", "-m", "Remove test push file"])
         subprocess.check_call(["git", "push"])
-
-# Authenticate with Hugging Face CLI
-authenticate_with_huggingface()
 
 # Setup Git LFS
 setup_git_lfs()
@@ -153,13 +159,13 @@ setup_git_lfs()
 first_push = not branch_exists_on_remote(branch_name)
 
 # Test push with a small file
-test_push()
+# test_push()
 
 print("Test push completed successfully.")
 
 # Continue with staging and committing the actual files
 all_paths = []
-for root, dirs, files_in_dir in os.walk(script_directory):
+for root, dirs, files_in_dir in os.walk(directory_path):
     if '.git' in root.split(os.path.sep):
         continue
     for name in dirs + files_in_dir:
@@ -203,17 +209,3 @@ if current_chunk:
     commit_and_push_chunk(current_chunk, commit_message, first_push)
 
 print("All chunks committed and pushed.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
