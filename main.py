@@ -18,18 +18,18 @@ huggingface_token = os.getenv("HF_TOKEN")
 
 # Get the project path from the environment variable
 directory_path = os.getenv('PROJECT_PATH')
-if not directory_path:
-    print("Error: PROJECT_PATH not set in .env file")
-    sys.exit(1)
+# if not directory_path:
+#     print("Error: PROJECT_PATH not set in .env file")
+#     sys.exit(1)
 
-# Ensure the path exists
-if not os.path.exists(directory_path):
-    print(f"Error: The specified PROJECT_PATH does not exist: {directory_path}")
-    sys.exit(1)
+# # Ensure the path exists
+# if not os.path.exists(directory_path):
+#     print(f"Error: The specified PROJECT_PATH does not exist: {directory_path}")
+#     sys.exit(1)
 
-# Change to the project directory
-os.chdir(directory_path)
-print(f"Changed working directory to: {os.getcwd()}")
+# # Change to the project directory
+# os.chdir(directory_path)
+# print(f"Changed working directory to: {os.getcwd()}")
 
 # Set Hugging Face credentials for Git
 subprocess.check_call(["git", "config", "--global", "credential.helper", "store"])
@@ -73,30 +73,73 @@ def commit_and_push_chunk(chunk, message, first_push):
             print(f"Skipping file in submodule: {relative_path}")
             continue
         try:
-            subprocess.check_call(["git", "add", relative_path])
+            subprocess.check_call(["git", "-C", directory_path, "add", relative_path])
         except subprocess.CalledProcessError as e:
             print(f"Error adding file {relative_path}: {e}")
             continue
         print_progress_bar(i + 1, len(chunk), prefix='Staging Progress:', suffix='Complete', length=50)
 
     try:
-        subprocess.check_output(["git", "diff", "--cached", "--exit-code"])
+        subprocess.check_output(["git", "-C", directory_path, "diff", "--cached", "--exit-code"])
         print("No changes to commit. Skipping...")
         return first_push
     except subprocess.CalledProcessError:
         pass
 
     try:
-        subprocess.check_call(["git", "commit", "-m", message])
+        subprocess.check_call(["git", "-C", directory_path, "commit", "-m", message])
         print(f"Chunk {chunk_counter} committed.")
         
         if first_push:
             print("First push, setting upstream branch.")
-            subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name])
+            subprocess.check_call(["git", "-C", directory_path, "push", "--set-upstream", remote_name, branch_name])
             first_push = False
         else:
             print("Pushing with --force.")
-            subprocess.check_call(["git", "push", "--force"])
+            subprocess.check_call(["git", "-C", directory_path, "push", "--force"])
+        print(f"Chunk {chunk_counter} pushed to remote.")
+        chunk_counter += 1
+    except subprocess.CalledProcessError as e:
+        print(f"Error during commit or push: {e}")
+    return first_push
+
+def commit_and_push_chunk(chunk, message, first_push):
+    global chunk_counter
+    if not chunk:
+        print("No files to commit. Skipping...")
+        return first_push
+
+    print(f"\nCommitting chunk {chunk_counter} with {len(chunk)} files...")
+    for i, f in enumerate(chunk):
+        relative_path = os.path.relpath(f, start=directory_path)
+        if is_in_submodule(f):
+            print(f"Skipping file in submodule: {relative_path}")
+            continue
+        try:
+            subprocess.check_call(["git", "-C", directory_path, "add", relative_path])
+        except subprocess.CalledProcessError as e:
+            print(f"Error adding file {relative_path}: {e}")
+            continue
+        print_progress_bar(i + 1, len(chunk), prefix='Staging Progress:', suffix='Complete', length=50)
+
+    try:
+        subprocess.check_output(["git", "-C", directory_path, "diff", "--cached", "--exit-code"])
+        print("No changes to commit. Skipping...")
+        return first_push
+    except subprocess.CalledProcessError:
+        pass
+
+    try:
+        subprocess.check_call(["git", "-C", directory_path, "commit", "-m", message])
+        print(f"Chunk {chunk_counter} committed.")
+        
+        if first_push:
+            print("First push, setting upstream branch.")
+            subprocess.check_call(["git", "-C", directory_path, "push", "--set-upstream", remote_name, branch_name])
+            first_push = False
+        else:
+            print("Pushing with --force.")
+            subprocess.check_call(["git", "-C", directory_path, "push", "--force"])
         print(f"Chunk {chunk_counter} pushed to remote.")
         chunk_counter += 1
     except subprocess.CalledProcessError as e:
