@@ -10,7 +10,7 @@ load_dotenv()
 current_chunk = []
 current_chunk_size = 0
 # chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
-chunk_size_limit = 1 * 1024 * 1024  # 1 GB
+chunk_size_limit = 500 * 1024 * 1024 # 500 MB in bytes
 chunk_counter = 1
 file_size_limit = 100 * 1024 * 1024  # 100 MB in bytes for GitHub
 remote_name = "origin"
@@ -167,11 +167,11 @@ def commit_and_push_chunk(chunk, message, first_push):
         
         if first_push:
             print("First push, setting upstream branch.")
-            subprocess.check_call(["git", "-C", directory_path, "push", "--set-upstream", remote_name, branch_name, "-f"])
+            subprocess.check_call(["git", "-C", directory_path, "push", "--set-upstream", remote_name, branch_name])
             first_push = False
         else:
             print("Pushing with --force.")
-            subprocess.check_call(["git", "-C", directory_path, "push", "--force"])
+            subprocess.check_call(["git", "-C", directory_path, "push"])
         print(f"Chunk {chunk_counter} pushed to remote.")
         chunk_counter += 1
     except subprocess.CalledProcessError as e:
@@ -195,6 +195,14 @@ def setup_git_lfs():
         print("Git LFS installed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Error installing Git LFS: {e}")
+
+def track_large_files():
+    try:
+        subprocess.check_call(["git", "lfs", "track", "*.large_extension"])
+        subprocess.check_call(["git", "add", ".gitattributes"])
+        print("Large files are being tracked with Git LFS.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error tracking large files with Git LFS: {e}")
 
 def authenticate_with_huggingface():
     print("Authenticating with Hugging Face CLI.")
