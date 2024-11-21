@@ -9,7 +9,8 @@ load_dotenv()
 # Initialize variables
 current_chunk = []
 current_chunk_size = 0
-chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
+# chunk_size_limit = 2 * 1024 * 1024 * 1024  # 2 GB in bytes
+chunk_size_limit = 1 * 1024 * 1024  # 1 GB
 chunk_counter = 1
 file_size_limit = 100 * 1024 * 1024  # 100 MB in bytes for GitHub
 remote_name = "origin"
@@ -18,21 +19,52 @@ huggingface_token = os.getenv("HF_TOKEN")
 
 # Get the project path from the environment variable
 directory_path = os.getenv('PROJECT_PATH')
-# if not directory_path:
-#     print("Error: PROJECT_PATH not set in .env file")
-#     sys.exit(1)
+if not directory_path:
+    print("Error: PROJECT_PATH not set in .env file")
+    sys.exit(1)
 
-# # Ensure the path exists
-# if not os.path.exists(directory_path):
-#     print(f"Error: The specified PROJECT_PATH does not exist: {directory_path}")
-#     sys.exit(1)
+# Ensure the path exists
+if not os.path.exists(directory_path):
+    print(f"Error: The specified PROJECT_PATH does not exist: {directory_path}")
+    sys.exit(1)
 
-# # Change to the project directory
-# os.chdir(directory_path)
-# print(f"Changed working directory to: {os.getcwd()}")
+# Change to the project directory
+os.chdir(directory_path)
+print(f"Changed working directory to: {os.getcwd()}")
 
 # Set Hugging Face credentials for Git
 subprocess.check_call(["git", "config", "--global", "credential.helper", "store"])
+
+def clean_repository_history():
+    try:
+        subprocess.check_call(["git", "filter-branch", "--force", "--index-filter",
+                               "git rm --cached --ignore-unmatch PATH_TO_LARGE_FILE", "--prune-empty", "--tag-name-filter", "cat", "--", "--all"])
+        print("Repository history cleaned.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error cleaning repository history: {e}")
+
+    clean_repository_history()
+
+def add_ssh_key():
+    try:
+        subprocess.check_call(["ssh-add", "~/.ssh/id_vied25519.pub"])
+        print("SSH key added to the agent.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error adding SSH key to the agent: {e}")
+        sys.exit(1)
+        
+# add_ssh_key()
+
+def update_remote_url_to_ssh():
+    try:
+        ssh_url = subprocess.check_output(["git", "-C", directory_path, "remote", "get-url", "--push", remote_name]).decode().strip()
+        if not ssh_url.startswith("git@"):
+            ssh_url = f"git@github.com:{ssh_url.split('github.com/')[-1]}"
+            subprocess.check_call(["git", "-C", directory_path, "remote", "set-url", remote_name, ssh_url])
+            print(f"Updated remote URL to use SSH: {ssh_url}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error updating remote URL to SSH: {e}")
+        sys.exit(1)
 
 def branch_exists_on_remote(branch_name):
     try:
@@ -73,7 +105,7 @@ def commit_and_push_chunk(chunk, message, first_push):
             print(f"Skipping file in submodule: {relative_path}")
             continue
         try:
-            subprocess.check_call(["git", "-C", directory_path, "add", relative_path])
+            subprocess.check_call(["git", "-C",  directory_path, "add", relative_path])
         except subprocess.CalledProcessError as e:
             print(f"Error adding file {relative_path}: {e}")
             continue
@@ -135,7 +167,7 @@ def commit_and_push_chunk(chunk, message, first_push):
         
         if first_push:
             print("First push, setting upstream branch.")
-            subprocess.check_call(["git", "-C", directory_path, "push", "--set-upstream", remote_name, branch_name])
+            subprocess.check_call(["git", "-C", directory_path, "push", "--set-upstream", remote_name, branch_name, "-f"])
             first_push = False
         else:
             print("Pushing with --force.")
@@ -182,9 +214,9 @@ def test_push():
         subprocess.check_call(["git", "add", os.path.join(directory_path, test_filename)])
         subprocess.check_call(["git", "commit", "-m", "Test commit for verifying push"])
         if first_push:
-            subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name])
-        else:
-            subprocess.check_call(["git", "push"])
+            subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name, "-f"])
+        # else:
+            # subprocess.check_call(["git", "push"])
         print("Test file pushed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Error during test push: {e}")
@@ -193,18 +225,14 @@ def test_push():
         # Clean up the test file from the repo
         subprocess.check_call(["git", "rm", os.path.join(directory_path, test_filename)])
         subprocess.check_call(["git", "commit", "-m", "Remove test push file"])
-        subprocess.check_call(["git", "push"])
+        subprocess.check_call(["git", "push", "--set-upstream", remote_name, branch_name, "-f"])
+        # subprocess.check_call(["git", "push"])
 
-# Setup Git LFS
 setup_git_lfs()
-
-# Check if the branch exists on remote
+# update_remote_url_to_ssh()
 first_push = not branch_exists_on_remote(branch_name)
-
-# Test push with a small file
-# test_push()
-
-print("Test push completed successfully.")
+test_push()
+# print("Test push completed successfully.")
 
 # Continue with staging and committing the actual files
 all_paths = []
